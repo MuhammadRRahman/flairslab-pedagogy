@@ -1,0 +1,515 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Flow Visualization</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:#f0f2f4;color:#1a1e26;
+  display:flex;flex-direction:column;align-items:center;min-height:100vh;padding:16px;gap:12px}
+h1{font-size:1.55rem;font-weight:700;letter-spacing:.03em;color:#1d5fa8;margin-top:4px}
+#canvas{border-radius:10px;box-shadow:0 2px 18px #0002;max-width:100%;cursor:crosshair}
+.controls{display:flex;flex-wrap:wrap;gap:12px;justify-content:center;align-items:flex-start;width:100%;max-width:940px}
+.card{background:#ffffff;border:1px solid #d0d7de;border-radius:10px;padding:12px 16px;
+  display:flex;flex-direction:column;gap:9px;min-width:170px;box-shadow:0 1px 6px #0001}
+.card h3{font-size:.7rem;text-transform:uppercase;letter-spacing:.1em;color:#6a737d}
+.slider-row{display:flex;align-items:center;gap:10px}
+input[type=range]{-webkit-appearance:none;appearance:none;height:6px;border-radius:3px;
+  background:#d0d7de;outline:none;flex:1}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:16px;height:16px;
+  border-radius:50%;background:#1d5fa8;cursor:pointer;border:2px solid #fff}
+.val-label{font-size:.84rem;font-weight:600;color:#1a1e26;min-width:54px;text-align:right}
+.tog-group{display:flex;gap:6px;flex-wrap:wrap}
+.tog-btn{padding:6px 13px;border-radius:6px;border:1.5px solid #d0d7de;background:transparent;
+  color:#6a737d;font-size:.81rem;font-weight:600;cursor:pointer;transition:all .15s}
+.tog-btn.a-steady{border-color:#1d5fa8;background:#e0eaf7;color:#1d5fa8}
+.tog-btn.a-unsteady{border-color:#c0392b;background:#fce8e8;color:#c0392b}
+.viz-btn{padding:7px 12px;border-radius:7px;border:2px solid #d0d7de;background:transparent;
+  font-size:.79rem;font-weight:700;cursor:pointer;transition:all .15s;color:#6a737d}
+.viz-btn.on-s{border-color:#1d5fa8;background:#e0eaf7;color:#1d5fa8}
+.viz-btn.on-p{border-color:#217a3c;background:#e2f5e8;color:#217a3c}
+.viz-btn.on-k{border-color:#b85c00;background:#fdf0e0;color:#b85c00}
+.legend{display:flex;flex-direction:column;gap:4px;font-size:.75rem;color:#6a737d}
+.leg-row{display:flex;align-items:center;gap:6px}
+.leg-line{width:26px;height:4px;border-radius:2px}
+.reset-btn{padding:7px 16px;border-radius:7px;border:1.5px solid #d0d7de;background:#f6f8fa;
+  color:#444;font-size:.82rem;font-weight:700;cursor:pointer;transition:all .15s;align-self:center}
+.reset-btn:hover{border-color:#1d5fa8;color:#1d5fa8;background:#e0eaf7}
+.info{font-size:.76rem;color:#6a737d;text-align:center;max-width:700px;line-height:1.5}
+</style>
+</head>
+<body>
+<h1>Flow Visualization</h1>
+<canvas id="canvas" width="900" height="520"></canvas>
+
+<div class="controls">
+  <!-- Velocity -->
+  <div class="card">
+    <h3>Free-stream Velocity</h3>
+    <div class="slider-row">
+      <input type="range" id="velSlider" min="50" max="100" value="75" step="1">
+      <span class="val-label" id="velVal">75 m/s</span>
+    </div>
+  </div>
+
+  <!-- Flow type -->
+  <div class="card">
+    <h3>Flow Type</h3>
+    <div class="tog-group">
+      <button class="tog-btn a-steady" id="btnSteady"   onclick="setFlow('steady')">Steady</button>
+      <button class="tog-btn"           id="btnUnsteady" onclick="setFlow('unsteady')">Unsteady</button>
+    </div>
+  </div>
+
+  <!-- Visualization -->
+  <div class="card">
+    <h3>Visualization (multi-select)</h3>
+    <div class="tog-group">
+      <button class="viz-btn on-s" id="btnS" onclick="toggleViz('s')">Streamlines</button>
+      <button class="viz-btn"      id="btnP" onclick="toggleViz('p')">Pathlines</button>
+      <button class="viz-btn"      id="btnK" onclick="toggleViz('k')">Streaklines</button>
+    </div>
+    <div class="legend">
+      <div class="leg-row"><div class="leg-line" style="background:#58a6ff"></div>Streamlines — tangent to instant velocity</div>
+      <div class="leg-row"><div class="leg-line" style="background:#3fb950"></div>Pathlines — particle trajectory over time</div>
+      <div class="leg-row"><div class="leg-line" style="background:#f0883e"></div>Streaklines — dye injected at fixed points</div>
+    </div>
+  </div>
+
+  <!-- Reset -->
+  <div class="card" style="justify-content:center">
+    <h3>Controls</h3>
+    <button class="reset-btn" onclick="resetSim()">↺ Reset</button>
+  </div>
+</div>
+
+<div class="info">
+  Potential flow past a cylinder (2D cross-section of a sphere). In <b>Steady</b> flow all three line types coincide.
+  Switch to <b>Unsteady</b> (vortex shedding) to see streamlines, pathlines and streaklines diverge.
+  Uniform parallel flow enters from the left.
+</div>
+
+<script>
+const canvas = document.getElementById('canvas');
+const ctx    = canvas.getContext('2d');
+
+// Physical domain (half-widths in cylinder-radius units)
+const DW=14, DH=9.3;
+const R=1.0;
+// Cylinder centre at exactly 1/3 from left edge → 2/3 of domain is wake
+// Domain: -DW/2 to +DW/2; 1/3 point = -DW/2 + DW/3 = -DW/6
+const CX=-DW/6, CY=0;  // ≈ -2.33
+
+// World ↔ canvas transforms
+const tx=x=>(x+DW/2)/DW*canvas.width;
+const ty=y=>(DH/2-y)/DH*canvas.height;
+const fx=px=>px/canvas.width*DW-DW/2;
+const fy=py=>DH/2-py/canvas.height*DH;
+const cRpx=()=>tx(CX+R)-tx(CX); // cylinder radius in pixels
+
+// ─── State ─────────────────────────────────────────────────────────────────
+const S={velReal:75,vel:1,flow:'steady',showS:true,showP:false,showK:false,time:0};
+
+// ─── UI wiring ─────────────────────────────────────────────────────────────
+document.getElementById('velSlider').addEventListener('input',e=>{
+  S.velReal=+e.target.value; S.vel=S.velReal/75;
+  document.getElementById('velVal').textContent=S.velReal+' m/s';
+  bgCache=null; resetSim();
+});
+function setFlow(t){
+  S.flow=t;
+  document.getElementById('btnSteady').className  ='tog-btn'+(t==='steady'  ?' a-steady'  :'');
+  document.getElementById('btnUnsteady').className='tog-btn'+(t==='unsteady'?' a-unsteady':'');
+  resetSim();
+}
+function toggleViz(t){
+  if(t==='s') S.showS=!S.showS;
+  else if(t==='p') S.showP=!S.showP;
+  else             S.showK=!S.showK;
+  document.getElementById('btnS').className='viz-btn'+(S.showS?' on-s':'');
+  document.getElementById('btnP').className='viz-btn'+(S.showP?' on-p':'');
+  document.getElementById('btnK').className='viz-btn'+(S.showK?' on-k':'');
+}
+
+// ─── Velocity field ─────────────────────────────────────────────────────────
+// Potential flow around cylinder centred at (CX,0), uniform flow U from left.
+// u = U[1 - R²(x²-y²)/r⁴],  v = -U·2R²xy/r⁴   (in cylinder-local coords)
+function flowVel(wx,wy,t){
+  const x=wx-CX, y=wy-CY, r2=x*x+y*y;
+  if(r2<=R*R*1.002) return [0,0];
+  const U=S.vel, r4=r2*r2;
+  let u=U*(1-R*R*(x*x-y*y)/r4);
+  let v=-U*2*R*R*x*y/r4;
+  if(S.flow==='unsteady'){
+    for(const vx of vortices){
+      const dx=wx-vx.x, dy=wy-vx.y, r2v=dx*dx+dy*dy;
+      if(r2v<0.04) continue;
+      const f=vx.g/(2*Math.PI*r2v);
+      u+=-f*dy; v+=f*dx;
+    }
+  }
+  return [u,v];
+}
+const inside=(wx,wy)=>{const dx=wx-CX,dy=wy-CY;return dx*dx+dy*dy<=R*R*1.01;};
+const offDom=(wx,wy)=>wx<-DW/2-0.5||wx>DW/2+0.5||wy<-DH/2-0.5||wy>DH/2+0.5;
+
+// Base-flow speed only (no vortex) for colouring
+function baseSpd(wx,wy){
+  const x=wx-CX,y=wy-CY,r2=x*x+y*y;
+  if(r2<=R*R) return 0;
+  const U=S.vel,r4=r2*r2;
+  const u=U*(1-R*R*(x*x-y*y)/r4);
+  const v=-U*2*R*R*x*y/r4;
+  return Math.sqrt(u*u+v*v);
+}
+
+// ─── RK4 ───────────────────────────────────────────────────────────────────
+function rkStream(wx,wy,t,ds){
+  function step(x,y){
+    const [u,v]=flowVel(x,y,t), m=Math.sqrt(u*u+v*v)+1e-9;
+    return [u/m,v/m];
+  }
+  const [n1x,n1y]=step(wx,wy);
+  const [n2x,n2y]=step(wx+.5*ds*n1x, wy+.5*ds*n1y);
+  const [n3x,n3y]=step(wx+.5*ds*n2x, wy+.5*ds*n2y);
+  const [n4x,n4y]=step(wx+ds*n3x,    wy+ds*n3y);
+  return [wx+ds/6*(n1x+2*n2x+2*n3x+n4x), wy+ds/6*(n1y+2*n2y+2*n3y+n4y)];
+}
+function rkPath(wx,wy,t,dt){
+  const [u1,v1]=flowVel(wx,wy,t);
+  const [u2,v2]=flowVel(wx+.5*dt*u1, wy+.5*dt*v1, t+.5*dt);
+  const [u3,v3]=flowVel(wx+.5*dt*u2, wy+.5*dt*v2, t+.5*dt);
+  const [u4,v4]=flowVel(wx+dt*u3,    wy+dt*v3,    t+dt);
+  return [wx+dt/6*(u1+2*u2+2*u3+u4), wy+dt/6*(v1+2*v2+2*v3+v4)];
+}
+
+// ─── Vortex shedding ────────────────────────────────────────────────────────
+class PVortex{
+  constructor(x,y,g){this.x=x;this.y=y;this.g=g;this.age=0;this.life=9;}
+  get alive(){return this.age<this.life;}
+  velAt(wx,wy){
+    const dx=wx-this.x,dy=wy-this.y,r2=dx*dx+dy*dy;
+    if(r2<0.01)return[0,0];
+    const f=this.g/(2*Math.PI*r2);return[-f*dy,f*dx];
+  }
+}
+let vortices=[], vTick=0;
+const SHED=1.5;
+let shedSide=1;
+function shedStep(dt){
+  vTick+=dt*S.vel;
+  if(vTick>=SHED){
+    vTick=0; shedSide=-shedSide;
+    vortices.push(new PVortex(CX+R*1.4, CY+shedSide*R*0.85,  shedSide*0.75*S.vel));
+    vortices.push(new PVortex(CX+R*1.4, CY-shedSide*R*0.85, -shedSide*0.75*S.vel));
+  }
+  for(const vx of vortices){
+    let ux=0,uy=0;
+    const xc=vx.x-CX,yc=vx.y-CY,r2=xc*xc+yc*yc;
+    if(r2>R*R*1.01){
+      const U=S.vel,r4=r2*r2;
+      ux+=U*(1-R*R*(xc*xc-yc*yc)/r4);
+      uy+=-U*2*R*R*xc*yc/r4;
+    }
+    for(const vy of vortices){
+      if(vy===vx)continue;
+      const[mu,mv]=vy.velAt(vx.x,vx.y); ux+=mu; uy+=mv;
+    }
+    vx.x+=ux*dt; vx.y+=uy*dt; vx.age+=dt;
+  }
+  vortices=vortices.filter(v=>v.alive);
+}
+
+// ─── Streamline seeds: uniform vertical column at left edge ────────────────
+const NSEEDS=16;
+const streamSeeds=[];
+for(let i=0;i<NSEEDS;i++){
+  const y=-DH/2+0.3+(i/(NSEEDS-1))*(DH-0.6);
+  streamSeeds.push([-DW/2+0.05, y]);
+}
+
+function buildStreamline(sx,sy,t){
+  const pts=[[sx,sy]]; let wx=sx,wy=sy;
+  for(let k=0;k<800;k++){
+    [wx,wy]=rkStream(wx,wy,t,0.1);
+    if(inside(wx,wy)||offDom(wx,wy))break;
+    pts.push([wx,wy]);
+  }
+  return pts;
+}
+
+// ─── Pathline particles ─────────────────────────────────────────────────────
+class Particle{
+  constructor(wx,wy){this.ox=wx;this.oy=wy;this.reset();}
+  reset(){this.x=this.ox;this.y=this.oy;this.trail=[[this.ox,this.oy]];this.alive=true;this.age=0;}
+  step(dt){
+    if(!this.alive)return;
+    const[nx,ny]=rkPath(this.x,this.y,S.time,dt);
+    this.x=nx;this.y=ny;this.age+=dt;
+    this.trail.push([nx,ny]);
+    if(this.trail.length>300)this.trail.shift();
+    if(inside(nx,ny)||offDom(nx,ny))this.alive=false;
+  }
+}
+const pathSeeds=[];
+for(let i=0;i<NSEEDS;i++){
+  const y=-DH/2+0.3+(i/(NSEEDS-1))*(DH-0.6);
+  pathSeeds.push([-DW/2+0.05,y]);
+}
+let particles=[], pathTick=0;
+
+// ─── Streakline injectors ───────────────────────────────────────────────────
+class SKParticle{
+  constructor(wx,wy){this.x=wx;this.y=wy;this.alive=true;}
+  step(dt){
+    if(!this.alive)return;
+    const[nx,ny]=rkPath(this.x,this.y,S.time,dt);
+    this.x=nx;this.y=ny;
+    if(inside(nx,ny)||offDom(nx,ny))this.alive=false;
+  }
+}
+class Injector{
+  constructor(wx,wy){this.ox=wx;this.oy=wy;this.parts=[];this.timer=0;this.interval=0.11;}
+  update(dt){
+    this.timer+=dt;
+    if(this.timer>=this.interval){this.timer=0;this.parts.push(new SKParticle(this.ox,this.oy));}
+    for(const p of this.parts)p.step(dt);
+    if(this.parts.length>250)this.parts=this.parts.slice(-250);
+  }
+  get pts(){return this.parts.filter(p=>p.alive).map(p=>[p.x,p.y]);}
+  reset(){this.parts=[];this.timer=0;}
+}
+const streakSeeds=[];
+for(let i=0;i<NSEEDS;i++){
+  const y=-DH/2+0.3+(i/(NSEEDS-1))*(DH-0.6);
+  streakSeeds.push([-DW/2+0.05,y]);
+}
+let injectors=[];
+
+// ─── Colour helpers ─────────────────────────────────────────────────────────
+function spd2col(t,a=1){
+  t=Math.max(0,Math.min(1,t));
+  let r,g,b;
+  if(t<.33){const s=t/.33;r=30;g=Math.round(100+s*155);b=Math.round(220-s*50);}
+  else if(t<.66){const s=(t-.33)/.33;r=Math.round(30+s*225);g=Math.round(255-s*50);b=Math.round(170-s*170);}
+  else{const s=(t-.66)/.34;r=255;g=Math.round(205-s*200);b=0;}
+  return`rgba(${r},${g},${b},${a})`;
+}
+
+// ─── Background speed field ─────────────────────────────────────────────────
+let bgCache=null, bgKey='';
+function drawBackground(){
+  const key=S.vel.toFixed(3);
+  if(bgCache&&bgKey===key){ctx.putImageData(bgCache,0,0);return;}
+  bgKey=key;
+  const W=canvas.width,H=canvas.height;
+  const img=ctx.createImageData(W,H);
+  const d=img.data;
+  const maxS=2.05*S.vel;
+  for(let py=0;py<H;py++){
+    for(let px=0;px<W;px++){
+      const wx=fx(px),wy=fy(py);
+      const dx=wx-CX,dy=wy-CY;
+      const idx=(py*W+px)*4;
+      if(dx*dx+dy*dy<=R*R){
+        d[idx]=55;d[idx+1]=52;d[idx+2]=50;d[idx+3]=255;continue;
+      }
+      const spd=baseSpd(wx,wy),t=spd/maxS;
+      let r,g,b;
+      if(t<.33){const s=t/.33;r=30;g=Math.round(100+s*155);b=Math.round(220-s*50);}
+      else if(t<.66){const s=(t-.33)/.33;r=Math.round(30+s*225);g=Math.round(255-s*50);b=Math.round(170-s*170);}
+      else{const s=(t-.66)/.34;r=255;g=Math.round(205-s*200);b=0;}
+      // Light background: blend colour toward off-white
+      const blend=.55;
+      d[idx]=Math.round(r*blend+240*(1-blend));
+      d[idx+1]=Math.round(g*blend+242*(1-blend));
+      d[idx+2]=Math.round(b*blend+244*(1-blend));
+      d[idx+3]=255;
+    }
+  }
+  bgCache=img; ctx.putImageData(bgCache,0,0);
+}
+
+// ─── Left-edge uniform inflow indicator ─────────────────────────────────────
+function drawInflow(){
+  ctx.save();
+  const maxS=2.05*S.vel;
+  const nArr=10;
+  const lx=tx(-DW/2);
+  for(let i=0;i<=nArr;i++){
+    const wy=-DH/2+i/nArr*DH;
+    const py=ty(wy);
+    const spd=baseSpd(-DW/2+0.1,wy);
+    const len=18;
+    const col2=spd2col(spd/maxS,.75);
+    ctx.strokeStyle=col2; ctx.lineWidth=1.8; ctx.fillStyle=col2;
+    ctx.beginPath(); ctx.moveTo(lx,py); ctx.lineTo(lx+len,py); ctx.stroke();
+    // small arrowhead
+    ctx.beginPath(); ctx.moveTo(lx+len,py);
+    ctx.lineTo(lx+len-6,py-3); ctx.lineTo(lx+len-6,py+3); ctx.closePath();
+    ctx.fill();
+  }
+  ctx.fillStyle='rgba(30,60,120,0.75)';
+  ctx.font='bold 11px "Segoe UI",sans-serif';
+  ctx.fillText('U = '+S.velReal+' m/s',lx+2,ty(DH/2-0.2)-4);
+  ctx.restore();
+}
+
+// ─── Ball ───────────────────────────────────────────────────────────────────
+function drawBall(){
+  const cx=tx(CX),cy=ty(CY),rx=cRpx();
+  const g=ctx.createRadialGradient(cx-rx*.2,cy-rx*.25,rx*.05,cx,cy,rx*1.05);
+  g.addColorStop(0,'#cc2222'); g.addColorStop(.6,'#991111'); g.addColorStop(1,'#440000');
+  ctx.beginPath(); ctx.arc(cx,cy,rx,0,Math.PI*2);
+  ctx.fillStyle=g; ctx.fill();
+  // seam
+  ctx.save(); ctx.clip();
+  ctx.strokeStyle='rgba(255,200,150,0.25)'; ctx.lineWidth=rx*.13;
+  ctx.beginPath(); ctx.arc(cx,cy,rx*.6,-Math.PI*.4,Math.PI*.4); ctx.stroke();
+  ctx.beginPath(); ctx.arc(cx,cy,rx*.6,Math.PI*.6,Math.PI*1.4); ctx.stroke();
+  ctx.restore();
+  // shine
+  ctx.beginPath(); ctx.arc(cx-rx*.28,cy-rx*.3,rx*.2,0,Math.PI*2);
+  ctx.fillStyle='rgba(255,255,255,0.13)'; ctx.fill();
+  ctx.beginPath(); ctx.arc(cx,cy,rx,0,Math.PI*2);
+  ctx.strokeStyle='rgba(255,255,255,0.15)'; ctx.lineWidth=1.5; ctx.stroke();
+}
+
+// ─── Streamlines ────────────────────────────────────────────────────────────
+function drawStreamlines(){
+  const maxS=2.05*S.vel;
+  ctx.lineWidth=3.0; ctx.lineCap='round'; ctx.lineJoin='round';
+  for(const[sx,sy]of streamSeeds){
+    const pts=buildStreamline(sx,sy,S.time);
+    if(pts.length<2)continue;
+    for(let i=1;i<pts.length;i++){
+      const[wx,wy]=pts[i], t=baseSpd(wx,wy)/maxS;
+      ctx.beginPath();
+      ctx.moveTo(tx(pts[i-1][0]),ty(pts[i-1][1]));
+      ctx.lineTo(tx(wx),ty(wy));
+      ctx.strokeStyle=spd2col(Math.min(1,t*.65+.05),.85);
+      ctx.stroke();
+    }
+    // arrow
+    if(pts.length>12){
+      const mi=Math.floor(pts.length*.55);
+      if(mi>1){
+        const[ax,ay]=pts[mi],[bx,by]=pts[mi-2];
+        arrow(tx(ax),ty(ay),Math.atan2(ty(ay)-ty(by),tx(ax)-tx(bx)),8,'rgba(180,220,255,.75)');
+      }
+    }
+  }
+}
+function arrow(px,py,ang,sz,col){
+  ctx.save(); ctx.translate(px,py); ctx.rotate(ang);
+  ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(-sz,-sz*.5); ctx.lineTo(-sz,sz*.5);
+  ctx.closePath(); ctx.fillStyle=col; ctx.fill(); ctx.restore();
+}
+
+// ─── Pathlines ──────────────────────────────────────────────────────────────
+function drawPathlines(){
+  const maxS=2.05*S.vel;
+  ctx.lineWidth=3.0; ctx.lineCap='round';
+  for(const p of particles){
+    const tr=p.trail; if(tr.length<2)continue;
+    const st=Math.max(0,tr.length-180);
+    for(let i=st+1;i<tr.length;i++){
+      const frac=(i-st)/(tr.length-st);
+      const[wx,wy]=tr[i], t=baseSpd(wx,wy)/maxS;
+      ctx.beginPath();
+      ctx.moveTo(tx(tr[i-1][0]),ty(tr[i-1][1]));
+      ctx.lineTo(tx(wx),ty(wy));
+      ctx.strokeStyle=`rgba(${Math.round(20+t*50)},${Math.round(175+t*80)},${Math.round(70-t*55)},${frac*.88})`;
+      ctx.stroke();
+    }
+    if(p.alive&&tr.length>3){
+      const n=tr.length;
+      arrow(tx(tr[n-1][0]),ty(tr[n-1][1]),Math.atan2(ty(tr[n-1][1])-ty(tr[n-3][1]),tx(tr[n-1][0])-tx(tr[n-3][0])),9,'rgba(80,240,110,.78)');
+    }
+  }
+}
+
+// ─── Streaklines ─────────────────────────────────────────────────────────────
+function drawStreaklines(){
+  const maxS=2.05*S.vel;
+  ctx.lineWidth=3.0; ctx.lineCap='round';
+  for(const inj of injectors){
+    const pts=inj.pts; if(pts.length<2)continue;
+    for(let i=1;i<pts.length;i++){
+      const frac=i/pts.length;
+      const[wx,wy]=pts[i], t=baseSpd(wx,wy)/maxS;
+      ctx.beginPath();
+      ctx.moveTo(tx(pts[i-1][0]),ty(pts[i-1][1]));
+      ctx.lineTo(tx(wx),ty(wy));
+      ctx.strokeStyle=`rgba(255,${Math.round(130+t*60)},${Math.round(15+t*30)},${.45+frac*.5})`;
+      ctx.stroke();
+    }
+    // injector dot
+    ctx.beginPath(); ctx.arc(tx(inj.ox),ty(inj.oy),3.5,0,Math.PI*2);
+    ctx.fillStyle='rgba(255,160,50,.9)'; ctx.fill();
+  }
+}
+
+// ─── Colorbar legend ─────────────────────────────────────────────────────────
+function drawColorbar(){
+  const bx=20,by=canvas.height-28,bw=160,bh=11;
+  const grd=ctx.createLinearGradient(bx,0,bx+bw,0);
+  for(let i=0;i<=10;i++) grd.addColorStop(i/10,spd2col(i/10));
+  ctx.fillStyle=grd; ctx.fillRect(bx,by,bw,bh);
+  ctx.strokeStyle='rgba(0,0,0,.18)'; ctx.lineWidth=1; ctx.strokeRect(bx,by,bw,bh);
+  ctx.fillStyle='rgba(50,60,80,.8)'; ctx.font='10px "Segoe UI",sans-serif';
+  ctx.fillText('0',bx,by-3);
+  ctx.fillText('Speed',bx+bw/2-14,by-3);
+  ctx.fillText('2U',bx+bw-16,by-3);
+}
+
+// ─── Render ──────────────────────────────────────────────────────────────────
+function render(){
+  drawBackground();
+  drawInflow();
+  drawBall();
+  if(S.showS) drawStreamlines();
+  if(S.showP) drawPathlines();
+  if(S.showK) drawStreaklines();
+  drawColorbar();
+}
+
+// ─── Simulation step ─────────────────────────────────────────────────────────
+const DT=0.022;
+function simStep(){
+  const dt=DT*S.vel;
+  S.time+=dt;
+  if(S.flow==='unsteady') shedStep(dt);
+
+  // Pathlines
+  pathTick+=dt;
+  if(pathTick>8){
+    pathTick=0;
+    for(const p of particles) if(!p.alive||p.age>30) p.reset();
+  }
+  if(S.showP) for(const p of particles) p.step(dt);
+
+  // Streaklines
+  if(S.showK) for(const inj of injectors) inj.update(dt);
+}
+
+// ─── Reset ────────────────────────────────────────────────────────────────────
+function resetSim(){
+  S.time=0; vortices=[]; vTick=0; shedSide=1; pathTick=0;
+  bgCache=null; bgKey='';
+  particles=pathSeeds.map(([x,y])=>new Particle(x,y));
+  injectors=streakSeeds.map(([x,y])=>new Injector(x,y));
+}
+
+// ─── Loop ─────────────────────────────────────────────────────────────────────
+function loop(){
+  requestAnimationFrame(loop);
+  simStep();
+  render();
+}
+resetSim();
+loop();
+</script>
+</body>
+</html>
