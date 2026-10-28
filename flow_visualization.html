@@ -388,7 +388,7 @@ function drawStreamlines(){
       ctx.beginPath();
       ctx.moveTo(tx(pts[i-1][0]),ty(pts[i-1][1]));
       ctx.lineTo(tx(wx),ty(wy));
-      ctx.strokeStyle=spd2col(Math.min(1,t*.65+.05),.85);
+      ctx.strokeStyle='rgba(0,0,0,0.75)'; 
       ctx.stroke();
     }
     // arrow
