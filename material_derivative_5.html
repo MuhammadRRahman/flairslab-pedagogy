@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Material Derivative</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+body{
+  background:#f0f2f4;
+  font-family:'Playfair Display',Georgia,serif;
+  color:#2a2a2a;
+  display:flex;flex-direction:column;align-items:center;
+  min-height:100vh;padding:14px 10px;gap:0;
+}
+h1{font-size:1.45rem;font-weight:400;letter-spacing:.05em;margin-bottom:2px;color:#1a2540;}
+.subtitle{font-size:.80rem;color:#6a7490;margin-bottom:10px;text-align:center;}
+canvas{
+  border-radius:4px;
+  box-shadow:0 2px 14px rgba(0,0,0,.12);
+  background:#fff;display:block;max-width:100%;
+  border:1.8px solid #111;
+}
+/* Formula panel */
+.formula-wrap{
+  background:#fff;border:1.8px solid #111;border-radius:4px;
+  padding:10px 24px 8px;margin:9px 0 8px;
+  width:min(880px,calc(100vw - 20px));
+  box-shadow:0 1px 6px rgba(0,0,0,.07);
+}
+.formula-heading{
+  font-size:.67rem;color:#899;text-transform:uppercase;letter-spacing:.09em;
+  text-align:center;margin-bottom:5px;
+}
+.formula-row{
+  display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:center;
+  font-size:1.12rem;line-height:1;
+}
+.f-block{display:inline-flex;flex-direction:column;align-items:center;padding:0 2px;}
+.f-over{font-size:.67rem;color:#8899bb;margin-bottom:3px;white-space:nowrap;}
+.f-val{font-weight:bold;}
+.f-eq{color:#445;padding:0 5px;align-self:flex-end;}
+/* Controls */
+.controls{
+  display:flex;flex-wrap:wrap;gap:12px;
+  align-items:center;justify-content:center;
+}
+.ctrl-group{display:flex;flex-direction:column;align-items:center;gap:3px;}
+label{font-size:.72rem;color:#556;font-weight:400;text-transform:uppercase;letter-spacing:.08em;}
+input[type=range]{width:148px;accent-color:#3a6cdf;}
+.val-display{font-size:.88rem;color:#1a2540;min-width:74px;text-align:center;}
+.btn{
+  padding:6px 18px;border:1.5px solid #111;border-radius:3px;cursor:pointer;
+  font-size:.82rem;font-family:'Playfair Display',Georgia,serif;
+  letter-spacing:.04em;transition:background .15s;
+}
+.btn-primary{background:#1a2540;color:#fff;}
+.btn-primary:hover{background:#2a3a6a;}
+.btn-secondary{background:#f0f2f4;color:#1a2540;}
+.btn-secondary:hover{background:#dde2ef;}
+.toggle-grp{display:flex;border-radius:3px;overflow:hidden;border:1.5px solid #111;}
+.toggle-grp button{
+  background:#f0f2f4;color:#2a2a2a;
+  font-size:.80rem;font-family:'Playfair Display',Georgia,serif;
+  border:none;border-right:1px solid #aaa;
+  padding:6px 14px;cursor:pointer;transition:background .15s,color .15s;
+}
+.toggle-grp button:last-child{border-right:none;}
+.toggle-grp button.active{background:#1a2540;color:#fff;}
+</style>
+</head>
+<body>
+
+<h1>Material Derivative</h1>
+<div class="subtitle">
+  DT/Dt = ∂T/∂t + u·∂T/∂x &nbsp;&nbsp;|&nbsp;&nbsp; Lagrangian = Local (Eulerian) + Convective
+</div>
+
+<canvas id="cv"></canvas>
+
+<div class="formula-wrap">
+  <div class="formula-heading">Live breakdown</div>
+  <div class="formula-row">
+    <span class="f-block">
+      <span class="f-over">&nbsp;</span>
+      <span class="f-val" style="color:#1a2540;font-size:1.18rem">DT/Dt</span>
+    </span>
+    <span class="f-eq">=</span>
+    <span class="f-block">
+      <span class="f-over">∂T/∂t</span>
+      <span class="f-val" id="fLocal" style="color:#555">0.000</span>
+    </span>
+    <span class="f-eq">+</span>
+    <span class="f-block">
+      <span class="f-over">u &thinsp;(m/s)</span>
+      <span class="f-val" id="fU" style="color:#a06010">1.00</span>
+    </span>
+    <span class="f-eq">&times;</span>
+    <span class="f-block">
+      <span class="f-over">∂T/∂x &thinsp;(°C/m)</span>
+      <span class="f-val" id="fGx" style="color:#2a6a30">0.7000</span>
+    </span>
+    <span class="f-eq">=</span>
+    <span class="f-block">
+      <span class="f-over">&nbsp;</span>
+      <span class="f-val" id="fTotal" style="font-size:1.18rem;color:#b03030">0.700 °C/s</span>
+    </span>
+  </div>
+</div>
+
+<div class="controls">
+  <div class="ctrl-group">
+    <label>Base Walking Speed</label>
+    <input type="range" id="slSpeed" min="-3" max="3" step="0.1" value="1">
+    <div class="val-display" id="lblSpeed">1.0 m/s →</div>
+  </div>
+  <div class="ctrl-group">
+    <label>Temperature Field</label>
+    <div class="toggle-grp">
+      <button id="btnSteady"   class="active" onclick="setMode('steady')">Steady</button>
+      <button id="btnUnsteady"             onclick="setMode('unsteady')">Unsteady</button>
+    </div>
+  </div>
+  <div class="ctrl-group">
+    <label>Animation</label>
+    <div style="display:flex;gap:7px;">
+      <button class="btn btn-primary"  id="btnPlay" onclick="togglePlay()">Pause</button>
+      <button class="btn btn-secondary"             onclick="resetSim()">Reset</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── Physics constants ──────────────────────────────────────────────────────────
+const L        = 100;
+const TCOLD    = -35;
+const THOT     =  35;
+const GRAD     = (THOT - TCOLD) / L;   // 0.7 °C/m
+const T_AMP    = 2,   T_PER = 6;       // unsteady: ±2 °C, period 6 s
+const U_AMP    = 0.5, U_PER = 4;       // unsteady: ±0.5 m/s, period 4 s
+const GAUGE_MAX = 5;                    // ±°C/s full scale
+const PF = "'Playfair Display',Georgia,serif";
+
+// ── State ──────────────────────────────────────────────────────────────────────
+let mode    = 'steady';
+let walkerX = 1;
+let simTime = 0;
+let playing = true;
+let lastTS  = null;
+
+const cv  = document.getElementById('cv');
+const ctx = cv.getContext('2d');
+
+function resize(){
+  const W = Math.min(window.innerWidth - 20, 920);
+  cv.width  = W;
+  cv.height = Math.round(W * 0.55);
+}
+resize();
+window.addEventListener('resize', resize);
+
+// ── Physics ────────────────────────────────────────────────────────────────────
+function uEff(t, uBase){
+  return mode === 'unsteady' ? uBase + U_AMP * Math.sin(2*Math.PI*t/U_PER) : uBase;
+}
+function Tfield(x, t){
+  const base = TCOLD + GRAD * x;
+  return mode === 'unsteady'
+    ? base + T_AMP * Math.sin(2*Math.PI*t/T_PER) * Math.sin(Math.PI*x/L)
+    : base;
+}
+function dTdt_f(x, t){
+  if(mode !== 'unsteady') return 0;
+  return T_AMP * (2*Math.PI/T_PER) * Math.cos(2*Math.PI*t/T_PER) * Math.sin(Math.PI*x/L);
+}
+function dTdx_f(x, t){
+  if(mode !== 'unsteady') return GRAD;
+  return GRAD + T_AMP * Math.sin(2*Math.PI*t/T_PER) * (Math.PI/L) * Math.cos(Math.PI*x/L);
+}
+
+// ── Colors ─────────────────────────────────────────────────────────────────────
+function tempToNorm(T){ return Math.max(0, Math.min(1, (T-TCOLD)/(THOT-TCOLD))); }
+
+function tempColor(T, alpha=1){
+  const n = tempToNorm(T);
+  const r = n<0.5 ? Math.round(16+n*2*(210-16))   : Math.round(210+(n-.5)*2*(192-210));
+  const g = n<0.5 ? Math.round(96+n*2*(210-96))   : Math.round(210-(n-.5)*2*170);
+  const b = n<0.5 ? Math.round(200+n*2*(210-200)) : Math.round(210-(n-.5)*2*(210-30));
+  return `rgba(${r},${g},${b},${alpha})`;
+}
+
+function rateColor(v){
+  const n = Math.max(-1, Math.min(1, v/GAUGE_MAX));
+  if(n >= 0){
+    return `rgb(${Math.round(180+n*60)},${Math.round(80-n*60)},${Math.round(40-n*30)})`;
+  }
+  const a = -n;
+  return `rgb(${Math.round(40-a*20)},${Math.round(80-a*50)},${Math.round(180+a*60)})`;
+}
+
+// ── Layout ─────────────────────────────────────────────────────────────────────
+//
+//  Zone A  Walker      y = 0      … BY
+//  Zone B  Bar         y = BY     … BY+BH
+//  (gap)               y = BY+BH  … GCY-GR-RO_extra
+//  Zone D  Gauges      y = GCY-RO … canvas bottom
+//
+function getLayout(W, H){
+  const BX  = W*0.08,  BW = W*0.84;
+  const BY  = H*0.36,  BH = H*0.08;
+  const GCY = H*0.76;
+  const GR  = Math.min(H*0.20, W*0.110);   // gauge radius
+  const GL  = W*0.27;    // left gauge centre x
+  const GRx = W*0.73;    // right gauge centre x
+  const fs  = {
+    sm: Math.round(H*0.038),
+    md: Math.round(H*0.044),
+    lg: Math.round(H*0.055),
+  };
+  return {BX, BW, BY, BH, GCY, GR, GL, GRx, fs};
+}
+
+// ── Main draw ──────────────────────────────────────────────────────────────────
+function drawAll(){
+  const W = cv.width, H = cv.height;
+  ctx.clearRect(0, 0, W, H);
+  const lo = getLayout(W, H);
+
+  const uBase = parseFloat(document.getElementById('slSpeed').value);
+  const u     = uEff(simTime, uBase);
+  const Tw    = Tfield(walkerX, simTime);
+  const local = dTdt_f(walkerX, simTime);
+  const gx    = dTdx_f(walkerX, simTime);
+  const total = local + u * gx;
+
+  drawBar(lo);
+  drawWalker(lo, u, uBase, Tw, H);
+  drawGauge(lo.GL,  lo.GCY, lo.GR, local, '∂T/∂t', 'Local · Eulerian',     lo.fs, H);
+  drawGauge(lo.GRx, lo.GCY, lo.GR, total, 'DT/Dt',  'Material · Lagrangian', lo.fs, H);
+  updateFormula(local, u, gx, total);
+}
+
+// ── Zone B: Bar ────────────────────────────────────────────────────────────────
+function drawBar(lo){
+  const {BX, BW, BY, BH, fs} = lo;
+
+  // colour gradient
+  const grd = ctx.createLinearGradient(BX, 0, BX+BW, 0);
+  for(let i = 0; i <= 80; i++)
+    grd.addColorStop(i/80, tempColor(Tfield((i/80)*L, simTime)));
+  ctx.fillStyle = grd;
+  ctx.beginPath(); ctx.roundRect(BX, BY, BW, BH, 4); ctx.fill();
+  ctx.strokeStyle = '#111'; ctx.lineWidth = 1.8;
+  ctx.beginPath(); ctx.roundRect(BX, BY, BW, BH, 4); ctx.stroke();
+
+  // temperature labels inside bar
+  ctx.font = `${fs.sm}px ${PF}`; ctx.textBaseline = 'middle';
+  ctx.fillStyle = 'rgba(215,235,255,0.95)'; ctx.textAlign = 'left';
+  ctx.fillText('−35°C', BX+10, BY+BH/2);
+  ctx.fillStyle = 'rgba(255,210,180,0.95)'; ctx.textAlign = 'right';
+  ctx.fillText('+35°C', BX+BW-10, BY+BH/2);
+
+  // walker position tick
+  const wp = BX + (walkerX/L)*BW;
+  ctx.strokeStyle = 'rgba(255,255,255,0.88)'; ctx.lineWidth = 3;
+  ctx.beginPath(); ctx.moveTo(wp, BY+4); ctx.lineTo(wp, BY+BH-4); ctx.stroke();
+}
+
+// ── Zone A: Walker ─────────────────────────────────────────────────────────────
+function drawWalker(lo, u, uBase, Tw, H){
+  const {BX, BW, BY, fs} = lo;
+  const px    = BX + (walkerX/L)*BW;
+
+  // figure dimensions (feet rest on bar top)
+  const spaceH = BY * 0.92;
+  const FH     = spaceH * 0.80;
+  const footY  = BY;
+  const figTop = footY - FH;
+
+  const dir = uBase < 0 ? -1 : 1;
+  const ph  = simTime * 3.5;
+  const sw  = Math.sin(ph) * (playing ? 13 : 0);
+
+  const headR  = FH * 0.11;
+  const headCY = figTop + headR * 1.05;
+  const neckY  = headCY + headR;
+  const hipY   = neckY  + FH * 0.47;
+  const shY    = neckY  + FH * 0.09;
+  const LW     = Math.max(3, FH * 0.055);
+
+  // shadow
+  ctx.fillStyle = 'rgba(0,0,0,0.07)';
+  ctx.beginPath(); ctx.ellipse(px, footY+2, 12, 4, 0, 0, Math.PI*2); ctx.fill();
+
+  // legs
+  ctx.strokeStyle = '#172060'; ctx.lineWidth = LW; ctx.lineCap = 'round';
+  ctx.beginPath(); ctx.moveTo(px, hipY); ctx.lineTo(px+dir*(8+sw), footY); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(px, hipY); ctx.lineTo(px+dir*(8-sw), footY); ctx.stroke();
+
+  // torso
+  ctx.strokeStyle = '#1a3070'; ctx.lineWidth = LW*1.2;
+  ctx.beginPath(); ctx.moveTo(px, neckY); ctx.lineTo(px, hipY); ctx.stroke();
+
+  // arms
+  ctx.strokeStyle = '#2045b0'; ctx.lineWidth = LW*0.9;
+  ctx.beginPath(); ctx.moveTo(px, shY); ctx.lineTo(px+dir*(12-sw*0.55), shY+FH*0.19); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(px, shY); ctx.lineTo(px-dir*(12-sw*0.55), shY+FH*0.19); ctx.stroke();
+
+  // head
+  ctx.beginPath(); ctx.arc(px, headCY, headR, 0, Math.PI*2);
+  ctx.fillStyle = '#f5c97a'; ctx.fill();
+  ctx.strokeStyle = '#a07020'; ctx.lineWidth = 2; ctx.stroke();
+
+  // velocity arrow above head
+  const arrowY = headCY - headR - 12;
+  if(Math.abs(u) > 0.05){
+    const AL = Math.min(72, Math.abs(u) * 26);
+    const ad = u < 0 ? -1 : 1;
+    ctx.strokeStyle = '#1a2540'; ctx.fillStyle = '#1a2540';
+    ctx.lineWidth = 2.6; ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(px - ad*AL*0.42, arrowY);
+    ctx.lineTo(px + ad*AL*0.58, arrowY);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(px + ad*AL*0.58,     arrowY);
+    ctx.lineTo(px + ad*AL*0.58 - ad*9, arrowY-6);
+    ctx.lineTo(px + ad*AL*0.58 - ad*9, arrowY+6);
+    ctx.closePath(); ctx.fill();
+  }
+
+  // speed label
+  ctx.font = `${fs.sm}px ${PF}`;
+  ctx.fillStyle = '#1a2540'; ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
+  const uTxt = mode === 'unsteady' ? `u = ${u.toFixed(2)} m/s` : `u = ${u.toFixed(1)} m/s`;
+  ctx.fillText(uTxt, px, arrowY - 4);
+
+  // temperature bubble (switches side near right edge)
+  const bw = 82, bh = 24;
+  const side = walkerX > L*0.72 ? -1 : 1;
+  const bx   = side === 1
+    ? Math.min(px + headR + 6, BX + BW - bw - 4)
+    : Math.max(px - headR - 6 - bw, BX + 4);
+  const by2 = headCY - bh/2;
+
+  ctx.fillStyle = 'rgba(255,255,255,0.93)';
+  ctx.strokeStyle = '#111'; ctx.lineWidth = 1.5;
+  ctx.beginPath(); ctx.roundRect(bx, by2, bw, bh, 4); ctx.fill(); ctx.stroke();
+  ctx.fillStyle = '#1a2540'; ctx.font = `${fs.sm}px ${PF}`;
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText(`T = ${Tw.toFixed(1)}°C`, bx+bw/2, by2+bh/2);
+}
+
+// ── Zone D: Semicircle gauge ───────────────────────────────────────────────────
+function drawGauge(cx, cy, r, value, symbol, label, fs, H){
+  const norm = Math.max(-1, Math.min(1, value / GAUGE_MAX));
+  const RO   = r * 1.12;   // outer bezel radius
+
+  // bezel: semicircular arc + flat baseline
+  ctx.strokeStyle = '#111'; ctx.lineWidth = 1.8; ctx.lineCap = 'butt';
+  ctx.beginPath(); ctx.arc(cx, cy, RO, Math.PI, 0, false); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(cx-RO, cy); ctx.lineTo(cx+RO, cy); ctx.stroke();
+
+  // scale tick labels: −max, 0, +max
+  ctx.font = `${fs.sm}px ${PF}`; ctx.fillStyle = '#334'; ctx.textBaseline = 'middle';
+  for(const [n, txt, al] of [[-1, `−${GAUGE_MAX}`, 'right'], [0, '0', 'center'], [1, `+${GAUGE_MAX}`, 'left']]){
+    const ta = Math.PI * (1 - (n+1)/2);
+    ctx.textAlign = al;
+    ctx.fillText(txt, cx + (RO+11)*Math.cos(ta), cy - (RO+11)*Math.sin(ta));
+  }
+
+  // unit label above arc
+  ctx.fillStyle = '#778'; ctx.font = `${fs.sm}px ${PF}`;
+  ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
+  ctx.fillText('°C / s', cx, cy - RO - 5);
+
+  // needle
+  const na = Math.PI * (1 - (norm+1)/2);
+  ctx.strokeStyle = '#111'; ctx.lineWidth = 2.8; ctx.lineCap = 'round';
+  ctx.beginPath();
+  ctx.moveTo(cx, cy);
+  ctx.lineTo(cx + r*0.82*Math.cos(na), cy - r*0.82*Math.sin(na));
+  ctx.stroke();
+  ctx.fillStyle = '#111'; ctx.beginPath(); ctx.arc(cx, cy, 5, 0, Math.PI*2); ctx.fill();
+
+  // symbol (italic) — sits just below the flat baseline
+  ctx.fillStyle = '#1a2540'; ctx.font = `italic ${fs.lg}px ${PF}`;
+  ctx.textBaseline = 'top'; ctx.textAlign = 'center';
+  ctx.fillText(symbol, cx, cy + 10);
+
+  // numeric value
+  ctx.fillStyle = rateColor(value); ctx.font = `${fs.md}px ${PF}`;
+  ctx.fillText(value.toFixed(3) + ' °C/s', cx, cy + 10 + fs.lg + 3);
+
+  // descriptor label
+  ctx.fillStyle = '#556'; ctx.font = `${Math.round(H*0.032)}px ${PF}`;
+  ctx.fillText(label, cx, cy + 10 + fs.lg + 3 + fs.md + 4);
+}
+
+// ── Formula panel update ───────────────────────────────────────────────────────
+function updateFormula(local, u, gx, total){
+  const el = id => document.getElementById(id);
+  el('fLocal').textContent  = local.toFixed(3);
+  el('fLocal').style.color  = rateColor(local);
+  el('fU').textContent      = u.toFixed(2);
+  el('fGx').textContent     = gx.toFixed(4);
+  el('fTotal').textContent  = total.toFixed(3) + ' °C/s';
+  el('fTotal').style.color  = rateColor(total);
+}
+
+// ── Controls ───────────────────────────────────────────────────────────────────
+function setMode(m){
+  mode = m;
+  document.getElementById('btnSteady').classList.toggle('active',   m === 'steady');
+  document.getElementById('btnUnsteady').classList.toggle('active', m === 'unsteady');
+}
+function togglePlay(){
+  playing = !playing;
+  document.getElementById('btnPlay').textContent = playing ? 'Pause' : 'Play';
+  if(playing) lastTS = null;
+}
+function resetSim(){
+  walkerX = 1; simTime = 0; lastTS = null;
+  if(!playing){ playing = true; document.getElementById('btnPlay').textContent = 'Pause'; }
+}
+document.getElementById('slSpeed').addEventListener('input', function(){
+  const v = parseFloat(this.value);
+  const arr = Math.abs(v) < 0.05 ? '' : v > 0 ? ' →' : ' ←';
+  document.getElementById('lblSpeed').textContent = v.toFixed(1) + ' m/s' + arr;
+});
+
+// ── Animation loop ─────────────────────────────────────────────────────────────
+function loop(ts){
+  if(playing){
+    if(lastTS !== null){
+      const dt = Math.min((ts - lastTS)/1000, 0.05);
+      simTime += dt;
+      const uBase = parseFloat(document.getElementById('slSpeed').value);
+      walkerX = Math.max(0.5, Math.min(L - 0.5, walkerX + uEff(simTime, uBase) * dt));
+    }
+    lastTS = ts;
+  }
+  drawAll();
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>
