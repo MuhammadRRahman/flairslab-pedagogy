@@ -74,15 +74,15 @@ canvas {
 <body>
 
 <header>
-  <h1>Deformation of Fluid Element</h1>
-  <p>Angular velocity and vorticity in 2D flow &nbsp;&mdash;&nbsp; ME Lecture Visualization &nbsp;&mdash;&nbsp;</p>
+  <h1>Fluid Element Deformation &amp; Vorticity</h1>
+  <p>Angular velocity and vorticity in 2D flow &nbsp;&mdash;&nbsp; ME Lecture Visualization &nbsp;&mdash;&nbsp;  &middot; IUT Dhaka</p>
 </header>
 
 <div class="page">
 
   <!-- §1 BL motivation -->
   <div class="card">
-    <div class="card-title">§1 &mdash; A fluid element in the boundary layer</div>
+    <div class="card-title">§1 &mdash; Motivation: a fluid element in the boundary layer</div>
     <canvas id="c0" width="760" height="234"></canvas>
     <div class="caption">
       In a boundary layer the velocity increases away from the wall: <strong>&#8706;u/&#8706;y &ne; 0</strong>.
@@ -91,7 +91,7 @@ canvas {
       The <span class="cx">x-fiber</span> remains nearly horizontal while the
       <span class="cy">y-fiber tilts clockwise</span>, revealing a net angular velocity
       <strong>&Omega;<sub>z</sub> &ne; 0</strong>.
-      This motivates the question: how do we express &Omega; in terms of the
+      This motivates the question: how do we express &Omega;<sub>z</sub> in terms of the
       local velocity gradients?
     </div>
   </div>
@@ -336,4 +336,296 @@ function drawS0(){
   // Streamlines
   [28,65,100,160].forEach(yp=>{
     ctx.setLineDash([6,5]);ctx.strokeStyle='rgba(0,0,0,0.18)';ctx.lineWidth=1;
-    ctx.beginPath();ctx.moveTo(FX,PLY-yp);
+    ctx.beginPath();ctx.moveTo(FX,PLY-yp);ctx.lineTo(W-15,PLY-yp);ctx.stroke();
+  });
+  ctx.setLineDash([]);
+
+  // Freestream arrows
+  const fs_y=PLY-DELTA-18;
+  for(let x=FX+10;x<W-80;x+=95)aLine(ctx,x,fs_y,x+UMAX,fs_y,'#555',1.4);
+  lbl(ctx,W-110,fs_y-10,'u∞ (uniform)','#000','italic 13px Times New Roman, serif');
+  lbl(ctx,W/2-35,PLY+16,'flat plate','rgba(0,0,0,0.5)','13px Times New Roman, serif');
+
+  // Animated element
+  const tau=(gT*0.26)%1.6, elemT=tau/1.6;
+  let al=1;
+  if(tau>1.35)al=1-(tau-1.35)/0.25;
+  if(tau<0.12)al=tau/0.12;
+  const x_c=165+elemT*480, yc_phys=65, yc_cv=PLY-yc_phys, a=22, shear=tau*0.38;
+
+  const corners=[
+    [a+shear*a,a],[-a+shear*a,a],[-a-shear*a,-a],[a-shear*a,-a]
+  ].map(([dx,dy])=>[x_c+dx,yc_cv-dy]);
+
+  ctx.globalAlpha=al;
+  ctx.beginPath();
+  corners.forEach(([cx2,cy2],i)=>i===0?ctx.moveTo(cx2,cy2):ctx.lineTo(cx2,cy2));
+  ctx.closePath();ctx.fillStyle='rgba(219,234,254,0.55)';ctx.fill();
+  ctx.strokeStyle=C.elem;ctx.lineWidth=2;ctx.stroke();
+
+  // x-fiber (stays horizontal)
+  ctx.strokeStyle=C.xfib;ctx.lineWidth=2;ctx.setLineDash([]);
+  ctx.beginPath();ctx.moveTo(x_c-a,yc_cv);ctx.lineTo(x_c+a,yc_cv);ctx.stroke();
+  head(ctx,x_c+a,yc_cv,0,C.xfib,7);
+
+  // y-fiber (tilts CW)
+  const fiberAng=Math.atan2(-a,shear*a);
+  ctx.strokeStyle=C.yfib;ctx.lineWidth=2;
+  ctx.beginPath();ctx.moveTo(x_c-shear*a,yc_cv+a);ctx.lineTo(x_c+shear*a,yc_cv-a);ctx.stroke();
+  head(ctx,x_c+shear*a,yc_cv-a,fiberAng,C.yfib,7);
+
+  if(shear>0.05)rotArc(ctx,x_c,yc_cv,28,-Math.PI/2,fiberAng,C.omega,2);
+  cdot(ctx,x_c,yc_cv);
+  if(shear>0.08)lbl(ctx,x_c+31,yc_cv-26,'Ωz',C.omega,'bold italic 14px Times New Roman, serif');
+  if(shear>0.2&&al>0.7){
+    lbl(ctx,x_c-18,yc_cv+a+18,'rotating &','#111','12px Times New Roman, serif');
+    lbl(ctx,x_c-14,yc_cv+a+32,'translating','#111','12px Times New Roman, serif');
+  }
+  ctx.globalAlpha=1;
+  lbl(ctx,FX+10,22,'∂u/∂y ≠ 0  →  Ωz ≠ 0','#111','bold 14px Times New Roman, serif');
+}
+
+// ── §2  REFERENCE ELEMENT ────────────────────────────────────
+function drawS1(){
+  const cv1=document.getElementById('c1');
+  const ctx=cv1.getContext('2d');
+  const W=cv1.width,H=cv1.height,cx=W/2,cy=H/2+12,A=72;
+
+  bgGrid(ctx,W,H);drawAxes(ctx,cx,cy,W,H);
+  ctx.fillStyle=C.efill;ctx.strokeStyle=C.elem;ctx.lineWidth=1.5;ctx.setLineDash([]);
+  ctx.beginPath();
+  [[A,A],[-A,A],[-A,-A],[A,-A]].forEach(([x,y],i)=>{
+    const[p,q]=cv(x,y,cx,cy);i===0?ctx.moveTo(p,q):ctx.lineTo(p,q);
+  });
+  ctx.closePath();ctx.fill();ctx.stroke();
+
+  fiber(ctx,cx,cy,0,0,A,0,C.xfib,2.5);
+  fiber(ctx,cx,cy,0,0,0,A,C.yfib,2.5);
+  cdot(ctx,cx,cy);
+
+  lbl(ctx,cx-15,cy-7,'O','#111','bold 15px Times New Roman, serif');
+  const[ax,ay]=cv(A+7,2,cx,cy); lbl(ctx,ax,ay,'A',C.xfib,'bold 15px Times New Roman, serif');
+  const[bx,by_]=cv(5,A+11,cx,cy); lbl(ctx,bx,by_,'B',C.yfib,'bold 15px Times New Roman, serif');
+  lbl(ctx,cx+16,cy+9,'x-fiber OA','rgba(180,83,9,0.6)','italic 13px Times New Roman, serif');
+  const[lbx,lby]=cv(-A-72,A/4,cx,cy);
+  lbl(ctx,lbx,lby,'y-fiber OB','rgba(4,120,87,0.6)','italic 13px Times New Roman, serif');
+
+  const[dxl,dxy]=cv(-A,-A,cx,cy),[dxr,_a]=cv(A,-A,cx,cy);
+  dimArr(ctx,dxl,dxy+10,dxr,dxy+10,'Δx');
+  const[dyx,dyb]=cv(A,-A,cx,cy),[_b,dyt]=cv(A,A,cx,cy);
+  dimArr(ctx,dyx+14,dyb,dyx+14,dyt,'Δy');
+
+  const[ocx,ocy]=cv(0,0,cx,cy);
+  aLine(ctx,ocx,ocy,ocx+32,ocy,C.vel,1.5);
+  lbl(ctx,ocx+35,ocy+5,'u',C.vel,'italic 15px Times New Roman, serif');
+  aLine(ctx,ocx,ocy,ocx,ocy-32,C.vel,1.5);
+  lbl(ctx,ocx+5,ocy-35,'v',C.vel,'italic 15px Times New Roman, serif');
+}
+
+// ── §3a  ∂v/∂x EFFECT ───────────────────────────────────────
+function drawS2a(){
+  const cv2=document.getElementById('c2a');
+  const ctx=cv2.getContext('2d');
+  const W=cv2.width,H=cv2.height,cx=W/2,cy=H/2+10,A=70;
+
+  bgGrid(ctx,W,H);drawAxes(ctx,cx,cy,W,H);
+  const DVDX=1.0,tP=Math.sin(gT*0.65)*0.52;
+
+  refBox(ctx,cx,cy,A,0.4);
+  defBox(ctx,cx,cy,A,0,0,DVDX,0,tP);
+  fiber(ctx,cx,cy,0,-A,0,A,'rgba(4,120,87,0.2)',2);
+
+  const[xl,yl]=dfm(-A,0,0,0,DVDX,0,tP),[xr,yr]=dfm(A,0,0,0,DVDX,0,tP);
+  fiber(ctx,cx,cy,xl,yl,xr,yr,C.xfib,2.5);
+
+  ctx.setLineDash([4,3]);ctx.strokeStyle='rgba(180,83,9,0.3)';ctx.lineWidth=1.5;
+  const[ocx,ocy]=cv(0,0,cx,cy),[oax,oay]=cv(A,0,cx,cy);
+  ctx.beginPath();ctx.moveTo(ocx,ocy);ctx.lineTo(oax,oay);ctx.stroke();ctx.setLineDash([]);
+
+  const alpC=cvAng(xr-xl,yr-yl);
+  if(Math.abs(alpC)>0.015){
+    rotArc(ctx,cx,cy,33,0,alpC,C.xfib,2);
+    const midA=alpC/2;
+    lbl(ctx,cx+46*Math.cos(midA)-5,cy+46*Math.sin(midA)+5,'α',C.xfib,'italic bold 17px Times New Roman, serif');
+  }
+  if(Math.abs(tP)>0.05){
+    const[cvx,cvy]=cv(xr,yr,cx,cy),len=32*Math.sign(tP);
+    aLine(ctx,cvx,cvy,cvx,cvy-len,C.xfib,1.5);
+    if(len>0)lbl(ctx,cvx+5,cvy-len-4,'(∂v/∂x)Δx','rgba(180,83,9,0.7)','11px Times New Roman, serif');
+  }
+
+  cdot(ctx,cx,cy);
+  lbl(ctx,cx-15,cy-8,'O','#111','bold 14px Times New Roman, serif');
+  const[ax2,ay2]=cv(xr+7,yr,cx,cy);
+  lbl(ctx,ax2,ay2+5,'A',C.xfib,'bold 14px Times New Roman, serif');
+  lbl(ctx,10,20,'∂v/∂x ≠ 0',C.xfib,'bold 15px Times New Roman, serif');
+  lbl(ctx,10,H-10,'dα/dt = ∂v/∂x    (CCW rotation of OA)','#333','12px Times New Roman, serif');
+}
+
+// ── §3b  ∂u/∂y EFFECT ───────────────────────────────────────
+function drawS2b(){
+  const cv2=document.getElementById('c2b');
+  const ctx=cv2.getContext('2d');
+  const W=cv2.width,H=cv2.height,cx=W/2,cy=H/2+10,A=70;
+
+  bgGrid(ctx,W,H);drawAxes(ctx,cx,cy,W,H);
+  const DUDY=1.0,tP=Math.sin(gT*0.65+1.1)*0.52;
+
+  refBox(ctx,cx,cy,A,0.4);
+  defBox(ctx,cx,cy,A,0,DUDY,0,0,tP);
+  fiber(ctx,cx,cy,-A,0,A,0,'rgba(180,83,9,0.2)',2);
+
+  const[xb,yb]=dfm(0,-A,0,DUDY,0,0,tP),[xt,yt]=dfm(0,A,0,DUDY,0,0,tP);
+  fiber(ctx,cx,cy,xb,yb,xt,yt,C.yfib,2.5);
+
+  ctx.setLineDash([4,3]);ctx.strokeStyle='rgba(4,120,87,0.3)';ctx.lineWidth=1.5;
+  const[ocx,ocy]=cv(0,0,cx,cy),[obx,oby]=cv(0,A,cx,cy);
+  ctx.beginPath();ctx.moveTo(ocx,ocy);ctx.lineTo(obx,oby);ctx.stroke();ctx.setLineDash([]);
+
+  const fA=cvAng(xt-xb,yt-yb);
+  if(Math.abs(fA-(-Math.PI/2))>0.015){
+    rotArc(ctx,cx,cy,37,-Math.PI/2,fA,C.yfib,2);
+    const midA=(-Math.PI/2+fA)/2;
+    lbl(ctx,cx+52*Math.cos(midA)-5,cy+52*Math.sin(midA)+5,'β',C.yfib,'italic bold 17px Times New Roman, serif');
+  }
+  if(Math.abs(tP)>0.05){
+    const[cvx,cvy]=cv(xt,yt,cx,cy),len=32*Math.sign(tP);
+    aLine(ctx,cvx,cvy,cvx+len,cvy,C.yfib,1.5);
+    if(len>0)lbl(ctx,cvx+len+3,cvy-5,'(∂u/∂y)Δy','rgba(4,120,87,0.7)','11px Times New Roman, serif');
+  }
+
+  cdot(ctx,cx,cy);
+  lbl(ctx,cx-15,cy-8,'O','#111','bold 14px Times New Roman, serif');
+  const[bx2,by2]=cv(xt+7,yt,cx,cy);
+  lbl(ctx,bx2,by2-7,'B',C.yfib,'bold 14px Times New Roman, serif');
+  lbl(ctx,10,20,'∂u/∂y ≠ 0',C.yfib,'bold 15px Times New Roman, serif');
+  lbl(ctx,10,H-10,'dβ/dt = −∂u/∂y    (CW rotation of OB)','#333','12px Times New Roman, serif');
+}
+
+// ── §4  STEP-BY-STEP DERIVATION ─────────────────────────────
+const DVDX3=1.1,DUDY3=0.5,TMAX3=0.72,CYCLE3=14;
+const PH=[
+  {name:'initial',s:0, e:3},
+  {name:'xfiber', s:3, e:7},
+  {name:'yfiber', s:7, e:11},
+  {name:'combined',s:11,e:14},
+];
+
+function getPhase(){const tc=gT%CYCLE3;for(const p of PH)if(tc>=p.s&&tc<p.e)return p;return PH[3];}
+function phProg(ph){return smth(Math.max(0,Math.min(1,(gT%CYCLE3-ph.s)/(ph.e-ph.s))));}
+
+function drawS3(){
+  const cv3=document.getElementById('c3');
+  const ctx=cv3.getContext('2d');
+  const W=cv3.width,H=cv3.height,cx=W/2,cy=200,A=88;
+
+  bgGrid(ctx,W,H);drawAxes(ctx,cx,cy,W,H);
+
+  const ph=getPhase();
+  const xPr=phProg(PH[1]),yPr=phProg(PH[2]),cPr=phProg(PH[3]);
+  const tX=(ph.name==='combined')?TMAX3:(ph.name==='yfiber')?TMAX3:xPr*TMAX3;
+  const tY=(ph.name==='combined')?TMAX3:yPr*TMAX3;
+
+  refBox(ctx,cx,cy,A,0.35);
+
+  const[yxb,yyb]=dfm(0,-A,0,DUDY3,0,0,tY),[yxt,yyt]=dfm(0,A,0,DUDY3,0,0,tY);
+  const yAl=(ph.name==='yfiber'||ph.name==='combined'||ph.name==='initial')?1:0.28;
+  fiber(ctx,cx,cy,yxb,yyb,yxt,yyt,C.yfib,2.5,yAl);
+  if(tY>0.01){
+    const fA=cvAng(yxt-yxb,yyt-yyb);
+    rotArc(ctx,cx,cy,48,-Math.PI/2,fA,`rgba(4,120,87,${yAl>0.5?0.85:0.2})`,2);
+    if(yAl>0.5){
+      const midA=(-Math.PI/2+fA)/2;
+      lbl(ctx,cx+65*Math.cos(midA)-5,cy+65*Math.sin(midA)+5,'β',C.yfib,'italic bold 18px Times New Roman, serif');
+    }
+  }
+
+  const[xxl,xyl]=dfm(-A,0,0,0,DVDX3,0,tX),[xxr,xyr]=dfm(A,0,0,0,DVDX3,0,tX);
+  const xAl=(ph.name==='xfiber'||ph.name==='combined'||ph.name==='initial')?1:0.5;
+  fiber(ctx,cx,cy,xxl,xyl,xxr,xyr,C.xfib,2.5,xAl);
+  if(tX>0.01){
+    const aA=cvAng(xxr-xxl,xyr-xyl);
+    rotArc(ctx,cx,cy,33,0,aA,`rgba(180,83,9,${xAl>0.5?0.85:0.2})`,2);
+    if(xAl>0.5){
+      const midA=aA/2;
+      lbl(ctx,cx+47*Math.cos(midA)-5,cy+47*Math.sin(midA)+5,'α',C.xfib,'italic bold 18px Times New Roman, serif');
+    }
+  }
+
+  if(ph.name==='xfiber'&&tX>0.05){
+    const[cvx,cvy]=cv(xxr,xyr,cx,cy);
+    aLine(ctx,cvx,cvy,cvx,cvy-34,C.xfib,1.5);
+    lbl(ctx,cvx+5,cvy-37,'(∂v/∂x)Δx','rgba(180,83,9,0.7)','11px Times New Roman, serif');
+  }
+  if(ph.name==='yfiber'&&tY>0.05){
+    const[cvx,cvy]=cv(yxt,yyt,cx,cy);
+    aLine(ctx,cvx,cvy,cvx+34,cvy,C.yfib,1.5);
+    lbl(ctx,cvx+37,cvy-5,'(∂u/∂y)Δy','rgba(4,120,87,0.7)','11px Times New Roman, serif');
+  }
+
+  if(cPr>0){
+    const omZ=0.5*(DVDX3-DUDY3),netAng=omZ*TMAX3*cPr;
+    if(Math.abs(netAng)>0.01){
+      rotArc(ctx,cx,cy,74,0,-netAng,C.omega,2.5);
+      lbl(ctx,cx+92*Math.cos(-netAng/2)-6,cy+92*Math.sin(-netAng/2)+5,
+          'Ωz',C.omega,'bold italic 16px Times New Roman, serif');
+    }
+  }
+
+  if(cPr>0.55){
+    const al=Math.min(1,(cPr-0.55)/0.3),fy=H-74;
+    ctx.globalAlpha=al;
+    ctx.fillStyle='rgba(255,255,255,0.95)';
+    ctx.strokeStyle='#aaa';ctx.lineWidth=1;ctx.setLineDash([]);
+    ctx.fillRect(cx-218,fy-10,436,54);ctx.strokeRect(cx-218,fy-10,436,54);
+    ctx.globalAlpha=1;
+    lbl(ctx,cx-212,fy+9,'Ωz = ½(dα/dt + dβ/dt) = ½(∂v/∂x − ∂u/∂y)',
+        C.omega,'bold 13.5px Times New Roman, serif');
+    lbl(ctx,cx-212,fy+32,'ωz = 2Ωz = ∂v/∂x − ∂u/∂y',
+        C.elem,'bold 13.5px Times New Roman, serif');
+  }
+
+  cdot(ctx,cx,cy);
+  lbl(ctx,cx-15,cy-8,'O','#111','bold 14px Times New Roman, serif');
+  const[lax,lay]=cv(xxr,xyr,cx,cy);
+  lbl(ctx,lax+6,lay+5,'A',C.xfib,'bold 13px Times New Roman, serif');
+  const[lbx,lby]=cv(yxt,yyt,cx,cy);
+  lbl(ctx,lbx+5,lby-7,'B',C.yfib,'bold 13px Times New Roman, serif');
+
+  const steps=[
+    {n:'initial',l:'t = 0'},{n:'xfiber',l:'∂v/∂x acts'},
+    {n:'yfiber',l:'∂u/∂y acts'},{n:'combined',l:'Ωz = ½(dα+dβ)/dt'},
+  ];
+  const sx0=58,span=(W-116)/3,sy=H-20;
+  steps.forEach((s,i)=>{
+    const sx=sx0+i*span,active=s.n===ph.name;
+    if(i<3){ctx.strokeStyle='#ccc';ctx.lineWidth=1;ctx.setLineDash([]);
+      ctx.beginPath();ctx.moveTo(sx+6,sy);ctx.lineTo(sx+span-6,sy);ctx.stroke();}
+    ctx.beginPath();ctx.arc(sx,sy,active?5.5:3.5,0,2*Math.PI);
+    ctx.fillStyle=active?'#1E3A8A':'#bbb';ctx.fill();
+    ctx.fillStyle=active?'#111':'#999';
+    ctx.font=(active?'bold ':'')+' 11px Times New Roman, serif';
+    const tw=ctx.measureText(s.l).width;
+    ctx.fillText(s.l,sx-tw/2,sy-11);
+  });
+}
+
+// ── PHASE TEXT ───────────────────────────────────────────────
+let lastPN='';
+const TEXTS={
+  initial:`Consider the fluid element at <span class="kb">t = 0</span>. The <span class="kx">x-fiber OA</span> lies along the x-axis and the <span class="ky">y-fiber OB</span> lies along the y-axis. We will track how each fiber rotates independently due to the two velocity gradient components.`,
+  xfiber:`<strong>Effect of &#8706;v/&#8706;x &ne; 0:</strong> The y-velocity <em>v</em> is larger at end A than at O by <span class="kx">(&#8706;v/&#8706;x)&thinsp;&Delta;x</span>. This lifts A upward faster than O, rotating OA counter-clockwise. The angular rotation rate of the x-fiber is: <span class="kx">d&alpha;/dt = &#8706;v/&#8706;x</span>.`,
+  yfiber:`<strong>Effect of &#8706;u/&#8706;y &ne; 0:</strong> The x-velocity <em>u</em> is larger at end B than at O by <span class="ky">(&#8706;u/&#8706;y)&thinsp;&Delta;y</span>. This pushes B rightward faster than O, rotating OB clockwise. The angular rotation rate of the y-fiber is: <span class="ky">d&beta;/dt = &minus;&#8706;u/&#8706;y</span>.`,
+  combined:`<strong>Angular velocity &Omega;<sub>z</sub></strong> is defined as the <em>average</em> rotation rate of the two perpendicular fibers: <span class="kp">&Omega;<sub>z</sub> = &frac12;(d&alpha;/dt + d&beta;/dt) = &frac12;(&#8706;v/&#8706;x &minus; &#8706;u/&#8706;y)</span>. The vorticity is: <span class="kb">&omega;<sub>z</sub> = 2&Omega;<sub>z</sub> = &#8706;v/&#8706;x &minus; &#8706;u/&#8706;y</span>.`,
+};
+function updatePhaseText(){
+  const ph=getPhase();
+  if(ph.name===lastPN)return;
+  lastPN=ph.name;
+  const el=document.getElementById('phaseText');
+  el.style.opacity='0';
+  setTimeout(()=>{el.innerHTML=TEXTS[ph.name]||'';el.style.opacity='1';},300);
+}
+</script>
+</body>
+</html>
