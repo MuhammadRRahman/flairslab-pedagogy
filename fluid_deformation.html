@@ -90,8 +90,8 @@ canvas {
       simultaneously <strong>rotates and deforms</strong>.
       The <span class="cx">x-fiber</span> remains nearly horizontal while the
       <span class="cy">y-fiber tilts clockwise</span>, revealing a net angular velocity
-      <strong>&Omega;<sub>z</sub> &ne; 0</strong>.
-      This motivates the question: how do we express &Omega;<sub>z</sub> in terms of the
+      <strong>&Omega; &ne; 0</strong>.
+      This motivates the question: how do we express &Omega;in terms of the
       local velocity gradients?
     </div>
   </div>
@@ -153,17 +153,17 @@ canvas {
     <div class="frow">
       <div class="fbox fw">
         <div class="flbl">Angular Velocity</div>
-        <div class="feq">&Omega;<sub>z</sub> = &frac12;(&#8706;v/&#8706;x &minus; &#8706;u/&#8706;y)</div>
+        <div class="feq">&Omega; = &frac12;(&#8706;v/&#8706;x &minus; &#8706;u/&#8706;y)</div>
         <div class="fnote">Average rotation rate of two perpendicular fibers</div>
       </div>
       <div class="fbox fv">
         <div class="flbl">Vorticity</div>
-        <div class="feq">&omega;<sub>z</sub> = &#8706;v/&#8706;x &minus; &#8706;u/&#8706;y = 2&Omega;<sub>z</sub></div>
+        <div class="feq">&omega; = &#8706;v/&#8706;x &minus; &#8706;u/&#8706;y = 2&Omega;<sub>z</sub></div>
         <div class="fnote">z-component of <strong>&omega;</strong> = &nabla; &times; <strong>v</strong></div>
       </div>
       <div class="fbox fi">
         <div class="flbl">Irrotational Condition</div>
-        <div class="feq">&omega;<sub>z</sub> = 0 &hArr; &#8706;v/&#8706;x = &#8706;u/&#8706;y</div>
+        <div class="feq">&omega; = 0 &hArr; &#8706;v/&#8706;x = &#8706;u/&#8706;y</div>
         <div class="fnote">The two fiber rotations cancel exactly</div>
       </div>
     </div>
@@ -467,7 +467,7 @@ function drawS0() {
 
   // "Ωz" label near element
   if(shear>0.08){
-    lbl(ctx,x_c+30,yc_cv-30,'Ω<sub>z</sub>',C.omega);  // sub won't render in canvas
+    lbl(ctx,x_c+30,yc_cv-30,'Ω',C.omega);  // sub won't render in canvas
     // Draw plain text instead
     lbl(ctx,x_c+31,yc_cv-26,'Ωz',C.omega,'bold italic 14px Times New Roman, serif');
   }
