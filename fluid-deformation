@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Fluid Element Deformation and Vorticity</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: #fff; color: #111;
+  font-family: 'Times New Roman', Times, serif;
+  font-size: 15px; line-height: 1.65;
+}
+header {
+  background: #f4f4f4;
+  border-bottom: 2px solid #aaa;
+  padding: 15px 28px 13px;
+}
+header h1 { font-size: 22px; font-weight: bold; }
+header p  { font-size: 13px; color: #555; margin-top: 3px; }
+
+.page {
+  max-width: 820px; margin: 0 auto;
+  padding: 24px 20px 50px;
+  display: flex; flex-direction: column; gap: 28px;
+}
+.card {
+  border: 1px solid #bbb; border-radius: 4px;
+  padding: 18px 20px; background: #fafafa;
+}
+.card-title {
+  font-size: 16px; font-weight: bold;
+  border-bottom: 1px solid #ccc;
+  padding-bottom: 7px; margin-bottom: 14px;
+}
+canvas {
+  display: block; border: 1px solid #bbb;
+  background: #fff; max-width: 100%; height: auto;
+}
+.pair { display: flex; gap: 16px; flex-wrap: wrap; }
+.pair > div { flex: 1; min-width: 260px; }
+.caption {
+  margin-top: 10px; font-size: 14px; color: #222; line-height: 1.65;
+}
+.cx  { color: #92400E; font-style: italic; }
+.cy  { color: #065F46; font-style: italic; }
+
+.cph {
+  margin-top: 13px; min-height: 60px; font-size: 15px;
+  line-height: 1.75; transition: opacity .3s; color: #111;
+}
+.cph .kx { color: #92400E; font-style: italic; }
+.cph .ky { color: #065F46; font-style: italic; }
+.cph .kp { color: #831843; font-style: italic; }
+.cph .kb { color: #1E3A8A; font-style: italic; }
+
+.frow { display: flex; gap: 14px; flex-wrap: wrap; }
+.fbox {
+  flex: 1; min-width: 190px;
+  border: 1.5px solid; border-radius: 4px;
+  padding: 12px 15px;
+}
+.fw { border-color: #9D174D; background: #FFF1F5; }
+.fv { border-color: #1E3A8A; background: #EFF6FF; }
+.fi { border-color: #047857; background: #ECFDF5; }
+.flbl { font-size: 12px; color: #555; letter-spacing:.05em; text-transform:uppercase; margin-bottom:4px; }
+.feq  { font-size: 17px; font-weight: bold; line-height: 1.4; }
+.fw .feq { color: #9D174D; }
+.fv .feq { color: #1E3A8A; }
+.fi .feq { color: #047857; }
+.fnote { font-size: 13px; color: #555; margin-top: 5px; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Deformation of Fluid Element</h1>
+  <p>Angular velocity and vorticity in 2D flow &nbsp;&mdash;&nbsp; ME Lecture Visualization &nbsp;&mdash;&nbsp;</p>
+</header>
+
+<div class="page">
+
+  <!-- §1 BL motivation -->
+  <div class="card">
+    <div class="card-title">§1 &mdash; A fluid element in the boundary layer</div>
+    <canvas id="c0" width="760" height="234"></canvas>
+    <div class="caption">
+      In a boundary layer the velocity increases away from the wall: <strong>&#8706;u/&#8706;y &ne; 0</strong>.
+      A fluid element embedded in this flow does not merely translate &mdash; it
+      simultaneously <strong>rotates and deforms</strong>.
+      The <span class="cx">x-fiber</span> remains nearly horizontal while the
+      <span class="cy">y-fiber tilts clockwise</span>, revealing a net angular velocity
+      <strong>&Omega;<sub>z</sub> &ne; 0</strong>.
+      This motivates the question: how do we express &Omega; in terms of the
+      local velocity gradients?
+    </div>
+  </div>
+
+  <!-- §2 reference element -->
+  <div class="card">
+    <div class="card-title">§2 &mdash; The fluid element at <em>t</em> = 0</div>
+    <canvas id="c1" width="760" height="216"></canvas>
+    <div class="caption">
+      A rectangular fluid element at point O(<em>x</em>,&thinsp;<em>y</em>) in a 2D velocity field
+      <strong>v</strong> = (<em>u</em>, <em>v</em>).
+      The <span class="cx">x-fiber OA</span> (initially horizontal) and
+      the <span class="cy">y-fiber OB</span> (initially vertical) are line elements embedded
+      in the fluid that deform, translate, and rotate with the flow.
+    </div>
+  </div>
+
+  <!-- §3 two sources -->
+  <div class="card">
+    <div class="card-title">§3 &mdash; Two independent sources of angular rotation</div>
+    <div class="pair">
+      <div>
+        <canvas id="c2a" width="358" height="285"></canvas>
+        <div class="caption">
+          <span class="cx">&#8706;v/&#8706;x &ne; 0:</span> The <em>y</em>-velocity is larger at end A
+          than at O. End A rises faster, rotating OA
+          <strong>counter-clockwise</strong> at rate&nbsp;
+          <span class="cx">d&alpha;/dt&nbsp;=&nbsp;&#8706;v/&#8706;x</span>.
+        </div>
+      </div>
+      <div>
+        <canvas id="c2b" width="358" height="285"></canvas>
+        <div class="caption">
+          <span class="cy">&#8706;u/&#8706;y &ne; 0:</span> The <em>x</em>-velocity is larger at end B
+          than at O. End B shifts right faster, rotating OB
+          <strong>clockwise</strong> at rate&nbsp;
+          <span class="cy">d&beta;/dt&nbsp;=&nbsp;&minus;&#8706;u/&#8706;y</span>.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- §4 step animation -->
+  <div class="card">
+    <div class="card-title">§4 &mdash; Angular velocity in the <em>xy</em>-plane (step by step)</div>
+    <div style="display:flex;justify-content:center;">
+      <canvas id="c3" width="560" height="400"></canvas>
+    </div>
+    <div id="phaseText" class="cph">
+      Consider the fluid element at <span class="kb">t = 0</span>.
+      The <span class="kx">x-fiber OA</span> and <span class="ky">y-fiber OB</span>
+      are aligned with the coordinate axes.
+    </div>
+  </div>
+
+  <!-- §5 summary -->
+  <div class="card">
+    <div class="card-title">§5 &mdash; Summary</div>
+    <div class="frow">
+      <div class="fbox fw">
+        <div class="flbl">Angular Velocity</div>
+        <div class="feq">&Omega;<sub>z</sub> = &frac12;(&#8706;v/&#8706;x &minus; &#8706;u/&#8706;y)</div>
+        <div class="fnote">Average rotation rate of two perpendicular fibers</div>
+      </div>
+      <div class="fbox fv">
+        <div class="flbl">Vorticity</div>
+        <div class="feq">&omega;<sub>z</sub> = &#8706;v/&#8706;x &minus; &#8706;u/&#8706;y = 2&Omega;<sub>z</sub></div>
+        <div class="fnote">z-component of <strong>&omega;</strong> = &nabla; &times; <strong>v</strong></div>
+      </div>
+      <div class="fbox fi">
+        <div class="flbl">Irrotational Condition</div>
+        <div class="feq">&omega;<sub>z</sub> = 0 &hArr; &#8706;v/&#8706;x = &#8706;u/&#8706;y</div>
+        <div class="fnote">The two fiber rotations cancel exactly</div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+const C = {
+  bg:'#ffffff', grid:'#ebebeb', axis:'#111111',
+  xfib:'#b45309', yfib:'#047857', elem:'#1e3a8a',
+  efill:'rgba(219,234,254,0.4)', ref:'#cccccc',
+  omega:'#9d174d', vel:'#333333', txt:'#111111',
+};
+
+let gT=0, lastTs=null;
+function tick(ts){
+  if(!lastTs) lastTs=ts;
+  gT+=Math.min((ts-lastTs)/1000,0.05); lastTs=ts;
+  drawS0(); drawS1(); drawS2a(); drawS2b(); drawS3();
+  updatePhaseText();
+  requestAnimationFrame(tick);
+}
+requestAnimationFrame(tick);
+
+function cv(x,y,cx,cy){ return [cx+x,cy-y]; }
+function dfm(x0,y0,dudx,dudy,dvdx,dvdy,t){
+  return [x0+(dudx*x0+dudy*y0)*t, y0+(dvdx*x0+dvdy*y0)*t];
+}
+function cvAng(px,py){ return Math.atan2(-py,px); }
+function smth(f){ f=Math.max(0,Math.min(1,f)); return f*f*(3-2*f); }
+
+function bgGrid(ctx,W,H){
+  ctx.fillStyle=C.bg; ctx.fillRect(0,0,W,H);
+  ctx.strokeStyle=C.grid; ctx.lineWidth=1; ctx.setLineDash([]);
+  for(let x=40;x<W;x+=40){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,H);ctx.stroke();}
+  for(let y=40;y<H;y+=40){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(W,y);ctx.stroke();}
+}
+
+function drawAxes(ctx,cx,cy,W,H){
+  ctx.strokeStyle=C.axis; ctx.lineWidth=1.5; ctx.setLineDash([]);
+  ctx.beginPath();ctx.moveTo(10,cy);ctx.lineTo(W-10,cy);ctx.stroke();
+  ctx.beginPath();ctx.moveTo(cx,H-10);ctx.lineTo(cx,10);ctx.stroke();
+  head(ctx,W-10,cy,0,C.axis,6); head(ctx,cx,10,-Math.PI/2,C.axis,6);
+  ctx.fillStyle=C.axis; ctx.font='italic 15px Times New Roman, serif';
+  ctx.fillText('x',W-20,cy-9); ctx.fillText('y',cx+7,17);
+}
+
+function head(ctx,px,py,ang,col,sz){
+  sz=sz||7; ctx.save(); ctx.translate(px,py); ctx.rotate(ang);
+  ctx.beginPath();ctx.moveTo(0,0);ctx.lineTo(-sz,sz*0.4);ctx.lineTo(-sz,-sz*0.4);
+  ctx.closePath();ctx.fillStyle=col;ctx.fill();ctx.restore();
+}
+
+function aLine(ctx,x1,y1,x2,y2,col,lw){
+  ctx.strokeStyle=col;ctx.lineWidth=lw||1.5;ctx.setLineDash([]);
+  ctx.beginPath();ctx.moveTo(x1,y1);ctx.lineTo(x2,y2);ctx.stroke();
+  head(ctx,x2,y2,Math.atan2(y2-y1,x2-x1),col,6);
+}
+
+function fiber(ctx,cx,cy,px1,py1,px2,py2,col,lw,al){
+  al=(al===undefined)?1:al;
+  const[ax,ay]=cv(px1,py1,cx,cy),[bx,by]=cv(px2,py2,cx,cy);
+  ctx.globalAlpha=al; ctx.strokeStyle=col; ctx.lineWidth=lw||2.5; ctx.setLineDash([]);
+  ctx.beginPath();ctx.moveTo(ax,ay);ctx.lineTo(bx,by);ctx.stroke();
+  head(ctx,bx,by,Math.atan2(by-ay,bx-ax),col,8); ctx.globalAlpha=1;
+}
+
+function rotArc(ctx,cx,cy,r,startA,endA,col,lw){
+  let d=endA-startA;
+  while(d>Math.PI)d-=2*Math.PI; while(d<-Math.PI)d+=2*Math.PI;
+  if(Math.abs(d)<0.012)return;
+  ctx.beginPath();ctx.strokeStyle=col;ctx.lineWidth=lw||2;ctx.setLineDash([]);
+  ctx.arc(cx,cy,r,startA,startA+d,d<0);ctx.stroke();
+  const ea=startA+d;
+  head(ctx,cx+r*Math.cos(ea),cy+r*Math.sin(ea),ea+(d>0?Math.PI/2:-Math.PI/2),col,5);
+}
+
+function refBox(ctx,cx,cy,A,al){
+  al=al||0.5; ctx.globalAlpha=al; ctx.setLineDash([5,4]);
+  ctx.strokeStyle=C.ref; ctx.lineWidth=1.5; ctx.beginPath();
+  [[A,A],[-A,A],[-A,-A],[A,-A]].forEach(([x,y],i)=>{
+    const[p,q]=cv(x,y,cx,cy);i===0?ctx.moveTo(p,q):ctx.lineTo(p,q);
+  });
+  ctx.closePath();ctx.stroke();ctx.setLineDash([]);ctx.globalAlpha=1;
+}
+
+function defBox(ctx,cx,cy,A,dudx,dudy,dvdx,dvdy,t,al){
+  if(Math.abs(t)<0.001)return; al=al||1;
+  const pts=[[A,A],[-A,A],[-A,-A],[A,-A]].map(([x,y])=>dfm(x,y,dudx,dudy,dvdx,dvdy,t));
+  ctx.globalAlpha=al; ctx.beginPath();
+  pts.forEach(([x,y],i)=>{const[p,q]=cv(x,y,cx,cy);i===0?ctx.moveTo(p,q):ctx.lineTo(p,q);});
+  ctx.closePath();ctx.fillStyle=C.efill;ctx.fill();
+  ctx.strokeStyle=C.elem;ctx.lineWidth=1.5;ctx.stroke();ctx.globalAlpha=1;
+}
+
+function cdot(ctx,cx,cy){
+  ctx.beginPath();ctx.arc(cx,cy,4.5,0,2*Math.PI);ctx.fillStyle='#333';ctx.fill();
+}
+
+function lbl(ctx,x,y,text,col,font){
+  ctx.fillStyle=col||C.txt;ctx.font=font||'14px Times New Roman, serif';ctx.fillText(text,x,y);
+}
+
+function dimArr(ctx,x1,y1,x2,y2,label){
+  const ang=Math.atan2(y2-y1,x2-x1),perp=ang+Math.PI/2,tk=5;
+  ctx.strokeStyle='#000';ctx.lineWidth=1.2;ctx.setLineDash([]);
+  [[x1,y1],[x2,y2]].forEach(([px,py])=>{
+    ctx.beginPath();
+    ctx.moveTo(px+Math.cos(perp)*tk,py+Math.sin(perp)*tk);
+    ctx.lineTo(px-Math.cos(perp)*tk,py-Math.sin(perp)*tk);
+    ctx.stroke();
+  });
+  ctx.beginPath();ctx.moveTo(x1,y1);ctx.lineTo(x2,y2);ctx.stroke();
+  const mx=(x1+x2)/2,my=(y1+y2)/2,tw=ctx.measureText(label).width;
+  lbl(ctx,mx-tw/2,my+16,label,'#000','italic 13px Times New Roman, serif');
+}
+
+// ── §1  BOUNDARY LAYER MOTIVATION ───────────────────────────
+function drawS0(){
+  const cv0=document.getElementById('c0');
+  const ctx=cv0.getContext('2d');
+  const W=cv0.width,H=cv0.height;
+  const PLY=198,DELTA=128,UMAX=72,PX0=36,FX=148;
+
+  bgGrid(ctx,W,H);
+
+  // Wall
+  ctx.fillStyle='#e4e4e4';ctx.fillRect(0,PLY+3,W,H-PLY-3);
+  ctx.save();ctx.beginPath();ctx.rect(0,PLY+3,W,H-PLY-3);ctx.clip();
+  ctx.strokeStyle='#bbb';ctx.lineWidth=0.8;
+  for(let i=-40;i<W+40;i+=13){ctx.beginPath();ctx.moveTo(i,PLY+3);ctx.lineTo(i+28,PLY+31);ctx.stroke();}
+  ctx.restore();
+  ctx.fillStyle='#111';ctx.fillRect(0,PLY,W,3);
+
+  // BL edge dashed
+  ctx.setLineDash([8,5]);ctx.strokeStyle='rgba(0,0,0,0.3)';ctx.lineWidth=1;
+  ctx.beginPath();ctx.moveTo(FX,PLY-DELTA);ctx.lineTo(W-18,PLY-DELTA);ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Parabolic profile
+  function uProf(yp){ if(yp>=DELTA)return UMAX; const e=yp/DELTA; return UMAX*(2*e-e*e); }
+
+  ctx.beginPath();
+  for(let yp=0;yp<=180;yp++){const y_cv=PLY-yp,x=PX0+uProf(yp);yp===0?ctx.moveTo(x,y_cv):ctx.lineTo(x,y_cv);}
+  ctx.strokeStyle='#000';ctx.lineWidth=1.8;ctx.stroke();
+
+  [18,36,54,72,90,108,126,152,172].forEach(yp=>{
+    const y_cv=PLY-yp,u=uProf(yp); if(u>4)aLine(ctx,PX0,y_cv,PX0+u,y_cv,'#333',1.2);
+  });
+
+  // y-axis
+  ctx.strokeStyle='#000';ctx.lineWidth=1.2;ctx.setLineDash([]);
+  ctx.beginPath();ctx.moveTo(PX0,PLY+2);ctx.lineTo(PX0,PLY-180);ctx.stroke();
+  head(ctx,PX0,PLY-180,-Math.PI/2,'#000',5);
+  lbl(ctx,PX0-14,PLY-184,'y','#000','italic 15px Times New Roman, serif');
+
+  // Profile labels
+  lbl(ctx,PX0+UMAX+6,PLY+1,'u = 0','#000','italic 13px Times New Roman, serif');
+  lbl(ctx,PX0+UMAX+6,PLY-DELTA-2,'u∞','#000','italic bold 14px Times New Roman, serif');
+
+  // δ bracket
+  ctx.strokeStyle='#000';ctx.lineWidth=1;
+  const bx=FX-10;
+  ctx.beginPath();ctx.moveTo(bx,PLY);ctx.lineTo(bx,PLY-DELTA);ctx.stroke();
+  ctx.beginPath();ctx.moveTo(bx-4,PLY);ctx.lineTo(bx+4,PLY);ctx.stroke();
+  ctx.beginPath();ctx.moveTo(bx-4,PLY-DELTA);ctx.lineTo(bx+4,PLY-DELTA);ctx.stroke();
+  lbl(ctx,bx-20,PLY-DELTA/2+5,'δ','#000','italic bold 15px Times New Roman, serif');
+
+  // Streamlines
+  [28,65,100,160].forEach(yp=>{
+    ctx.setLineDash([6,5]);ctx.strokeStyle='rgba(0,0,0,0.18)';ctx.lineWidth=1;
+    ctx.beginPath();ctx.moveTo(FX,PLY-yp);
